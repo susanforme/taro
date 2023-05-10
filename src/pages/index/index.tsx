@@ -1,13 +1,282 @@
-import { View, Text } from "@tarojs/components";
+import { Text, View } from '@tarojs/components';
+import { $ } from '@tarojs/extend';
+import { useEffect, useMemo, useState } from 'react';
+import './index.scss';
 
-const Index: React.FC<AppProps> = () => {
+const Classify: React.FC<AppProps> = () => {
+  const [editing, setEditing] = useState(true);
+  const [order, setOrder] = useState<number[]>([]);
+
+  const btnText = useMemo(() => {
+    if (editing) {
+      return '完成';
+    } else {
+      return '编辑';
+    }
+  }, [editing]);
+  useEffect(() => {
+    new DragAndDropSort('#container', editing, (order) => {
+      setOrder(order);
+    });
+  }, [editing]);
+  console.log('order', order);
   return (
-    <View className="index">
-      <Text>Index</Text>
+    <View className="classify">
+      <View className="tip">
+        <Text>长按模块拖动排序可调整课程分类展示顺序</Text>
+        <View
+          className="btn"
+          onClick={() => {
+            setEditing(!editing);
+          }}>
+          {btnText}
+        </View>
+      </View>
+
+      <View id="container">
+        {[1, 2, 3, 4, 5, 6].map((v, index) => {
+          return (
+            <View
+              key={v}
+              data-index={index}
+              className="box">
+              创新创业{v}
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 };
 
 interface AppProps {}
-export default Index;
-Index.displayName = "Index";
+export default Classify;
+Classify.displayName = 'Classify';
+
+class DragAndDropSort {
+  #startX: number = 0;
+  //TODO 可优化 计算出第几个,统一设置为当前item的中奖高度,而不是touch的位置
+  #startY: number = 0;
+  #offsetX: number = 0;
+  #offsetY: number = 0;
+  #dragging: boolean = false;
+  #target: HTMLElement | null = null;
+  /** 边界值 */
+  #boundary = {
+    top: 0,
+    bottom: 0,
+    left: 0,
+    right: 0,
+  };
+  #container: any;
+  #itemHeight = 0;
+  #onOrderChange?: (order: number[]) => void;
+
+  constructor(
+    selector: string,
+    open: boolean,
+    onOrderChange?: (order: number[]) => void,
+  ) {
+    this.#container = $(selector)?.[0];
+
+    if (!this.#container) {
+      return;
+    }
+    this.#onOrderChange = onOrderChange;
+    this.#init(open);
+  }
+  async #init(open: boolean) {
+    const res = await $(this.#container).offset();
+    this.#itemHeight = await $(
+      this.#container.childNodes[0],
+    ).height();
+    this.#boundary = {
+      top: res.top,
+      bottom: res.top + res.height,
+      left: res.left,
+      right: res.left + res.width,
+    };
+    if (open) {
+      this.#container.addEventListener(
+        'touchstart',
+        this.#handleTouchStart.bind(this),
+      );
+      this.#container.addEventListener(
+        'touchmove',
+        this.#handleTouchMove.bind(this),
+      );
+      this.#container.addEventListener(
+        'touchend',
+        this.#handleTouchEnd.bind(this),
+      );
+    } else {
+      this.#container.removeEventListener(
+        'touchstart',
+        this.#handleTouchStart.bind(this),
+      );
+      this.#container.removeEventListener(
+        'touchmove',
+        this.#handleTouchMove.bind(this),
+      );
+      this.#container.removeEventListener(
+        'touchend',
+        this.#handleTouchEnd.bind(this),
+      );
+    }
+  }
+
+  #handleTouchStart(event: any) {
+    // event.stopPropagation();
+    const touch = event.touches[0];
+    this.#startX = touch.clientX;
+    this.#startY = touch.clientY;
+    this.#target = $(
+      `.box[data-index='${event.target?.dataset?.index}']`,
+    )?.[0];
+    if (!this.#target) {
+      return;
+    }
+  }
+
+  #handleTouchMove(event: TouchEvent) {
+    event.stopPropagation();
+
+    if (!this.#target) {
+      return;
+    }
+    const touch = event.touches[0];
+    this.#offsetX = touch.clientX - this.#startX;
+    this.#offsetY = touch.clientY - this.#startY;
+    if (
+      !this.#dragging &&
+      (Math.abs(this.#offsetX) > 10 ||
+        Math.abs(this.#offsetY) > 10)
+    ) {
+      this.#dragging = true;
+    }
+    if (
+      this.#boundary.bottom + this.#itemHeight <
+      touch.clientY
+    ) {
+      this.#offsetY =
+        this.#boundary.bottom -
+        this.#startY +
+        this.#itemHeight;
+    } else if (
+      this.#boundary.top - this.#itemHeight >
+      touch.clientY
+    ) {
+      this.#offsetY =
+        this.#boundary.top -
+        this.#startY -
+        this.#itemHeight;
+    }
+    if (this.#dragging) {
+      this.#target!.style.transform = `translate(0px, ${
+        this.#offsetY
+      }px)`;
+      this.#target.classList.add('dragging');
+      this.#container.classList.add('selected');
+    }
+  }
+
+  #handleTouchEnd(event: any) {
+    event.stopPropagation();
+    if (!this.#target) {
+      return;
+    }
+    if (this.#dragging) {
+      this.#target!.style.transform = '';
+      this.#target.classList.remove('dragging');
+      this.#container.classList.remove('selected');
+      this.#dragging = false;
+      this.#getTargetIndex(
+        event.changedTouches[0],
+        event.target?.dataset?.index,
+      ).then((stayIndex) => {
+        const currentIndex = this.#getIndexById(
+          event.target?.dataset?.index,
+        );
+        if (stayIndex !== null) {
+          let refChild = null;
+          if (
+            stayIndex !==
+            this.#container.childNodes.length - 1
+          ) {
+            if (stayIndex < currentIndex) {
+              refChild =
+                this.#container.childNodes[stayIndex];
+            } else {
+              refChild =
+                this.#container.childNodes[stayIndex + 1];
+            }
+          }
+          this.#container.insertBefore(
+            this.#target!,
+            refChild,
+          );
+
+          this.#onOrderChange?.(this.#getOrder());
+        }
+      });
+    }
+  }
+  #getIndexById(id: number) {
+    for (
+      let index = 0;
+      index < this.#container.childNodes.length;
+      index++
+    ) {
+      if (
+        Object.is(
+          this.#container.childNodes[index].dataset.index,
+          id,
+        )
+      ) {
+        return index;
+      }
+    }
+    return -1;
+  }
+  async #getTargetIndex(touches: any, id: number) {
+    //小程序不支持 document.elementFromPoint 傻逼张小龙
+    const children = this.#container.childNodes;
+    const { pageX, pageY } = touches;
+    for (let index = 0; index < children.length; index++) {
+      if (Object.is(children[index].dataset.index, id)) {
+        continue;
+      }
+      const offset = await $(children[index]).offset();
+      const rect = {
+        top: offset.top,
+        bottom: offset.top + offset.height,
+        left: offset.left,
+        right: offset.left + offset.width,
+      };
+      if (
+        pageX > rect.left &&
+        pageX < rect.right &&
+        pageY > rect.top &&
+        pageY < rect.bottom
+      ) {
+        return index;
+      }
+      // 判断超出边界的情况
+      if (pageY < this.#boundary.top) {
+        return 0;
+      }
+      if (pageY > this.#boundary.bottom) {
+        return children.length - 1;
+      }
+    }
+    return null;
+  }
+  #getOrder() {
+    const children = this.#container.childNodes;
+    const result: any[] = [];
+    for (let index = 0; index < children.length; index++) {
+      result.push(children?.[index]?.dataset?.index);
+    }
+    return result;
+  }
+}

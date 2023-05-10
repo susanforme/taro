@@ -1,0 +1,53 @@
+.classify {
+  display: flex;
+  padding: 30px;
+  gap: 20px;
+  flex-direction: column;
+  .tip {
+    background: rgba(85, 156, 255, 0.1);
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    padding: 20rpx;
+    font-size: 26rpx;
+    align-items: center;
+    margin-bottom: 20px;
+    .btn {
+      height: 50px;
+      width: 112px;
+      background: #549cff;
+      border-radius: 25px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ffffff;
+    }
+  }
+  @mixin center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+  }
+  #container {
+    @include center();
+    gap: 20px;
+    flex-direction: column;
+    .box {
+      background: #f7f8fa;
+      border-radius: 12px;
+      height: 99px;
+      width: 100%;
+      // transition: width, height 0.5s ease;
+      @include center();
+    }
+    .dragging {
+      border: 1px solid black;
+      box-sizing: border-box;
+    }
+    // &.selected {
+    // box-sizing: border-box;
+    // border: 1px dashed black;
+    // }
+  }
+}

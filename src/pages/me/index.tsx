@@ -5,9 +5,9 @@
  * @FilePath: \myApp\src\pages\me\index.tsx
  * @Description:
  */
-import { Component, PropsWithChildren } from "react";
-import { View, Text } from "@tarojs/components";
-import "./index.less";
+import { Text, View } from '@tarojs/components';
+import { Component, PropsWithChildren } from 'react';
+import './index.less';
 
 export default class Me extends Component<PropsWithChildren> {
   componentDidMount() {}
