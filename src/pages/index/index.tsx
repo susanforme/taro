@@ -128,12 +128,12 @@ class DragAndDropSort {
    * @description 初始化
    */
   async #init(open: boolean) {
+    const container = $(this.#container);
     try {
       // 开启拖拽 绑定事件
       if (open) {
         // 等待元素渲染完成,进入下一次事件循环
         await this.#sleep(100);
-        const container = $(this.#container);
         const res = await container.offset();
         this.#itemHeight = await $(
           this.#children[0],
@@ -144,31 +144,25 @@ class DragAndDropSort {
           left: res.left,
           right: res.left + res.width,
         };
-        this.#container.addEventListener(
+        container.on(
           'touchstart',
           this.#handleTouchStart.bind(this),
         );
-        this.#container.addEventListener(
+        container.on(
           'touchmove',
           this.#handleTouchMove.bind(this),
         );
-        this.#container.addEventListener(
+        container.on(
           'touchend',
           this.#handleTouchEnd.bind(this),
         );
       } else {
         // 关闭拖拽 解绑事件
-        this.#container.removeEventListener(
-          'touchstart',
-          this.#handleTouchStart.bind(this),
-        );
-        this.#container.removeEventListener(
-          'touchmove',
-          this.#handleTouchMove.bind(this),
-        );
-        this.#container.removeEventListener(
-          'touchend',
-          this.#handleTouchEnd.bind(this),
+        console.log('解绑事件!');
+        ['touchstart', 'touchmove', 'touchend'].forEach(
+          (event) => {
+            container.off(event);
+          },
         );
       }
     } catch (error) {
