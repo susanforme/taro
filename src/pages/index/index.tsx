@@ -101,6 +101,12 @@ class DragAndDropSort {
     /** 排序改变时的回调 */
     onOrderChange?: (order: number[]) => void,
   ) {
+    console.log(
+      '%c [ selector ]-99',
+      'font-size:13px; background:pink; color:#bf2c9f;',
+      selector,
+    );
+
     // 挂载容器
     this.#container = $(selector)?.[0];
     if (!this.#container) {
@@ -129,6 +135,7 @@ class DragAndDropSort {
       if (open) {
         // 等待元素渲染完成,进入下一次事件循环
         await this.#sleep(100);
+        console.log($(this.#container));
         const res = await $(this.#container).offset();
         this.#itemHeight = await $(
           this.#container.childNodes[0],
@@ -168,7 +175,7 @@ class DragAndDropSort {
       }
     } catch (error) {
       // this.#init(open);
-      console.error(error);
+      console.log('error->', error);
     }
   }
   /**
