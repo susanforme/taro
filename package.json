@@ -31,7 +31,7 @@
   "dependencies": {
     "@babel/runtime": "^7.7.7",
     "@tarojs/components": "3.6.5",
-    "@tarojs/extend": "^3.6.6",
+    "@tarojs/extend": "3.6.6",
     "@tarojs/helper": "3.6.5",
     "@tarojs/plugin-framework-react": "3.6.5",
     "@tarojs/plugin-platform-alipay": "3.6.5",

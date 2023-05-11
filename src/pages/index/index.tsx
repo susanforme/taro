@@ -53,13 +53,29 @@ interface AppProps {}
 export default Classify;
 Classify.displayName = 'Classify';
 
+/**
+ * @description 小程序拖拽排序通用类封装 适用于taro
+ * @description  需在配置中配置{enablePullDownRefresh: false,disableScroll: true,}
+ * @example new DragAndDropSort('#container',true,(order)=>{console.log(order)})
+ * @example <View id="container">
+ *         <View
+ *            key={v}
+ *            data-index={index}
+ *            className="box">
+ *            创新创业{v}
+ *         </View>
+ * </View>
+ * @susanforme
+ */
 class DragAndDropSort {
   #startX: number = 0;
   //TODO 可优化 计算出第几个,统一设置为当前item的中奖高度,而不是touch的位置
   #startY: number = 0;
   #offsetX: number = 0;
   #offsetY: number = 0;
+  /** 是否正在拖拽 */
   #dragging: boolean = false;
+  /** 正在操作的元素 */
   #target: HTMLElement | null = null;
   /** 边界值 */
   #boundary = {
@@ -68,83 +84,114 @@ class DragAndDropSort {
     left: 0,
     right: 0,
   };
+  /** 容器 */
   #container: any;
+  /** 单项子元素高度 */
   #itemHeight = 0;
+  /** 排序改变时的回调 */
   #onOrderChange?: (order: number[]) => void;
-
   constructor(
+    /**
+     * @description 父元素容器的选择器
+     * @example '#container' '.container' 'container'
+     */
     selector: string,
+    /** 是否开启拖拽排序 */
     open: boolean,
+    /** 排序改变时的回调 */
     onOrderChange?: (order: number[]) => void,
   ) {
+    // 挂载容器
     this.#container = $(selector)?.[0];
-
     if (!this.#container) {
       return;
     }
     this.#onOrderChange = onOrderChange;
     this.#init(open);
   }
+  /**
+   * @param time 时间
+   * @description 睡一哈儿~
+   */
+  #sleep(time: number) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve(true);
+      }, time);
+    });
+  }
+  /**
+   * @description 初始化
+   */
   async #init(open: boolean) {
-    const res = await $(this.#container).offset();
-    this.#itemHeight = await $(
-      this.#container.childNodes[0],
-    ).height();
-    this.#boundary = {
-      top: res.top,
-      bottom: res.top + res.height,
-      left: res.left,
-      right: res.left + res.width,
-    };
-    if (open) {
-      this.#container.addEventListener(
-        'touchstart',
-        this.#handleTouchStart.bind(this),
-      );
-      this.#container.addEventListener(
-        'touchmove',
-        this.#handleTouchMove.bind(this),
-      );
-      this.#container.addEventListener(
-        'touchend',
-        this.#handleTouchEnd.bind(this),
-      );
-    } else {
-      this.#container.removeEventListener(
-        'touchstart',
-        this.#handleTouchStart.bind(this),
-      );
-      this.#container.removeEventListener(
-        'touchmove',
-        this.#handleTouchMove.bind(this),
-      );
-      this.#container.removeEventListener(
-        'touchend',
-        this.#handleTouchEnd.bind(this),
-      );
+    try {
+      // 开启拖拽 绑定事件
+      if (open) {
+        // 等待元素渲染完成,进入下一次事件循环
+        await this.#sleep(100);
+        const res = await $(this.#container).offset();
+        this.#itemHeight = await $(
+          this.#container.childNodes[0],
+        ).height();
+        this.#boundary = {
+          top: res.top,
+          bottom: res.top + res.height,
+          left: res.left,
+          right: res.left + res.width,
+        };
+        this.#container.addEventListener(
+          'touchstart',
+          this.#handleTouchStart.bind(this),
+        );
+        this.#container.addEventListener(
+          'touchmove',
+          this.#handleTouchMove.bind(this),
+        );
+        this.#container.addEventListener(
+          'touchend',
+          this.#handleTouchEnd.bind(this),
+        );
+      } else {
+        // 关闭拖拽 解绑事件
+        this.#container.removeEventListener(
+          'touchstart',
+          this.#handleTouchStart.bind(this),
+        );
+        this.#container.removeEventListener(
+          'touchmove',
+          this.#handleTouchMove.bind(this),
+        );
+        this.#container.removeEventListener(
+          'touchend',
+          this.#handleTouchEnd.bind(this),
+        );
+      }
+    } catch (error) {
+      // this.#init(open);
+      console.error(error);
     }
   }
-
+  /**
+   * @description touch开始,taro 小程序端event事件并不携带target,为了兼容性考虑自己获取
+   */
   #handleTouchStart(event: any) {
-    // event.stopPropagation();
     const touch = event.touches[0];
     this.#startX = touch.clientX;
     this.#startY = touch.clientY;
+    // 在元素上必须设置data-index
     this.#target = $(
       `.box[data-index='${event.target?.dataset?.index}']`,
     )?.[0];
-    if (!this.#target) {
-      return;
-    }
   }
 
   #handleTouchMove(event: TouchEvent) {
+    // 阻止冒泡穿透
     event.stopPropagation();
-
     if (!this.#target) {
       return;
     }
     const touch = event.touches[0];
+    // 获取偏移量
     this.#offsetX = touch.clientX - this.#startX;
     this.#offsetY = touch.clientY - this.#startY;
     if (
@@ -154,6 +201,7 @@ class DragAndDropSort {
     ) {
       this.#dragging = true;
     }
+    // 当前元素的位置 若大于边界值+ 一个元素的高度 则设置为边界值+一个元素的高度
     if (
       this.#boundary.bottom + this.#itemHeight <
       touch.clientY
@@ -162,7 +210,9 @@ class DragAndDropSort {
         this.#boundary.bottom -
         this.#startY +
         this.#itemHeight;
-    } else if (
+    }
+    // 当前元素的位置 若小于边界值- 一个元素的高度 则设置为边界值-一个元素的高度
+    else if (
       this.#boundary.top - this.#itemHeight >
       touch.clientY
     ) {
@@ -171,11 +221,16 @@ class DragAndDropSort {
         this.#startY -
         this.#itemHeight;
     }
+    // 若是拖动状态 则设置元素的位置
     if (this.#dragging) {
+      // 设置元素的位置 为了防止元素跳动,设置为translate,同时translate有gpu加速,性能更佳
       this.#target!.style.transform = `translate(0px, ${
         this.#offsetY
       }px)`;
+      // 给拖动元素添加样式
       this.#target.classList.add('dragging');
+      // 给容器添加样式
+
       this.#container.classList.add('selected');
     }
   }
@@ -186,10 +241,12 @@ class DragAndDropSort {
       return;
     }
     if (this.#dragging) {
+      // 拖动结束,清空元素的位置
       this.#target!.style.transform = '';
       this.#target.classList.remove('dragging');
       this.#container.classList.remove('selected');
       this.#dragging = false;
+      // 获取停留的位置
       this.#getTargetIndex(
         event.changedTouches[0],
         event.target?.dataset?.index,
@@ -221,6 +278,11 @@ class DragAndDropSort {
       });
     }
   }
+  /**
+   *
+   * @param id data-index 所绑定的id
+   * @returns 返回根据id查询出的索引
+   */
   #getIndexById(id: number) {
     for (
       let index = 0;
@@ -238,39 +300,60 @@ class DragAndDropSort {
     }
     return -1;
   }
+  /**
+   *
+   * @param touches  touch事件所传入的touches
+   * @param id data-index所绑定的id
+   * @returns 根据touch事件所传入的touches获取停留的位置所在元素的索引
+   */
   async #getTargetIndex(touches: any, id: number) {
-    //小程序不支持 document.elementFromPoint 傻逼张小龙
-    const children = this.#container.childNodes;
-    const { pageX, pageY } = touches;
-    for (let index = 0; index < children.length; index++) {
-      if (Object.is(children[index].dataset.index, id)) {
-        continue;
-      }
-      const offset = await $(children[index]).offset();
-      const rect = {
-        top: offset.top,
-        bottom: offset.top + offset.height,
-        left: offset.left,
-        right: offset.left + offset.width,
-      };
-      if (
-        pageX > rect.left &&
-        pageX < rect.right &&
-        pageY > rect.top &&
-        pageY < rect.bottom
+    try {
+      //小程序不支持 document.elementFromPoint 傻逼张小龙
+      const children = this.#container.childNodes;
+      const { pageX, pageY } = touches;
+      for (
+        let index = 0;
+        index < children.length;
+        index++
       ) {
-        return index;
+        // 排除自己
+        if (Object.is(children[index].dataset.index, id)) {
+          continue;
+        }
+        const offset = await $(children[index]).offset();
+        const rect = {
+          top: offset.top,
+          bottom: offset.top + offset.height,
+          left: offset.left,
+          right: offset.left + offset.width,
+        };
+        // 判断是否在元素内
+        if (
+          pageX > rect.left &&
+          pageX < rect.right &&
+          pageY > rect.top &&
+          pageY < rect.bottom
+        ) {
+          return index;
+        }
+        // 判断超出边界的情况
+        if (pageY < this.#boundary.top) {
+          return 0;
+        }
+        if (pageY > this.#boundary.bottom) {
+          return children.length - 1;
+        }
       }
-      // 判断超出边界的情况
-      if (pageY < this.#boundary.top) {
-        return 0;
-      }
-      if (pageY > this.#boundary.bottom) {
-        return children.length - 1;
-      }
+      return null;
+    } catch (error) {
+      debugger;
+      console.error(error);
+      return null;
     }
-    return null;
   }
+  /**
+   * @description 获取当前元素的顺序,以data-index所绑定id为依据
+   */
   #getOrder() {
     const children = this.#container.childNodes;
     const result: any[] = [];

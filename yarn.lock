@@ -1578,7 +1578,7 @@
     swiper "6.8.0"
     weui "^1.1.2"
 
-"@tarojs/extend@^3.6.6":
+"@tarojs/extend@3.6.6":
   version "3.6.6"
   resolved "https://registry.npmmirror.com/@tarojs/extend/-/extend-3.6.6.tgz#cec2171a2c62f5dc0c4ee58182ff2a101a88013f"
   integrity sha512-+m2TUZPPeFZn3MXDzv082uXuT27erWMhb2xfdxNW25wIfi420/+tZsCXbCf47qtOzBv+UxPTXsDTpS7nWP+bDA==
