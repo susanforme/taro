@@ -86,6 +86,8 @@ class DragAndDropSort {
   };
   /** 容器 */
   #container: any;
+  /** 子元素 */
+  #children: any[];
   /** 单项子元素高度 */
   #itemHeight = 0;
   /** 排序改变时的回调 */
@@ -101,17 +103,13 @@ class DragAndDropSort {
     /** 排序改变时的回调 */
     onOrderChange?: (order: number[]) => void,
   ) {
-    console.log(
-      '%c [ selector ]-99',
-      'font-size:13px; background:pink; color:#bf2c9f;',
-      selector,
-    );
-
     // 挂载容器
     this.#container = $(selector)?.[0];
     if (!this.#container) {
       return;
     }
+    // 挂载子元素
+    this.#children = this.#getChildren();
     this.#onOrderChange = onOrderChange;
     this.#init(open);
   }
@@ -135,10 +133,10 @@ class DragAndDropSort {
       if (open) {
         // 等待元素渲染完成,进入下一次事件循环
         await this.#sleep(100);
-        console.log($(this.#container));
-        const res = await $(this.#container).offset();
+        const container = $(this.#container);
+        const res = await container.offset();
         this.#itemHeight = await $(
-          this.#container.childNodes[0],
+          this.#children[0],
         ).height();
         this.#boundary = {
           top: res.top,
@@ -263,27 +261,29 @@ class DragAndDropSort {
         );
         if (stayIndex !== null) {
           let refChild = null;
-          if (
-            stayIndex !==
-            this.#container.childNodes.length - 1
-          ) {
+          if (stayIndex !== this.#children.length - 1) {
             if (stayIndex < currentIndex) {
-              refChild =
-                this.#container.childNodes[stayIndex];
+              refChild = this.#children[stayIndex];
             } else {
-              refChild =
-                this.#container.childNodes[stayIndex + 1];
+              refChild = this.#children[stayIndex + 1];
             }
           }
           this.#container.insertBefore(
             this.#target!,
             refChild,
           );
+          this.#children = this.#getChildren();
 
           this.#onOrderChange?.(this.#getOrder());
         }
       });
     }
+  }
+  /**
+   * @description 获取当前最新的子元素
+   */
+  #getChildren() {
+    return $(this.#container).children?.();
   }
   /**
    *
@@ -293,14 +293,11 @@ class DragAndDropSort {
   #getIndexById(id: number) {
     for (
       let index = 0;
-      index < this.#container.childNodes.length;
+      index < this.#children.length;
       index++
     ) {
       if (
-        Object.is(
-          this.#container.childNodes[index].dataset.index,
-          id,
-        )
+        Object.is(this.#children[index].dataset.index, id)
       ) {
         return index;
       }
@@ -316,7 +313,8 @@ class DragAndDropSort {
   async #getTargetIndex(touches: any, id: number) {
     try {
       //小程序不支持 document.elementFromPoint 傻逼张小龙
-      const children = this.#container.childNodes;
+      //!! 不支持childNodes 切记,在小程序端会正常,但是在切换到h5端会报错,因为childNodes 会获取到注释节点及文本节点,所以长度等会错误的返回
+      const children = this.#children;
       const { pageX, pageY } = touches;
       for (
         let index = 0;
@@ -353,7 +351,6 @@ class DragAndDropSort {
       }
       return null;
     } catch (error) {
-      debugger;
       console.error(error);
       return null;
     }
@@ -362,7 +359,7 @@ class DragAndDropSort {
    * @description 获取当前元素的顺序,以data-index所绑定id为依据
    */
   #getOrder() {
-    const children = this.#container.childNodes;
+    const children = this.#children;
     const result: any[] = [];
     for (let index = 0; index < children.length; index++) {
       result.push(children?.[index]?.dataset?.index);
